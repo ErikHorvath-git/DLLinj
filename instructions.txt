@@ -1,0 +1,66 @@
+# Linux DLL Injection Toolkit Guide
+# (For educational/research purposes only)
+
+## Prerequisites
+1. Install required packages:
+   sudo apt update
+   sudo apt install -y g++ mingw-w64 openssl libssl-dev
+
+## 1. Compile Test DLL (Windows target)
+cd dll
+x86_64-w64-mingw32-g++ -shared -o testdll.dll testdll.cpp -luser32 -Wall
+cd ..
+
+## 2. Encrypt the DLL
+cd encryptors
+g++ LinuxDllEncryptor.cpp -o dll_encryptor -lcrypto
+./dll_encryptor ../dll/testdll.dll MySecurePassword123
+cd ..
+
+## 3. Prepare Injector
+# Copy the encrypted output from step 2 and:
+nano injector/inj.cpp
+# Find and replace:
+# std::vector<BYTE> encryptedDllPath = {
+#   PASTE_YOUR_ENCRYPTED_BYTES_HERE
+# };
+# std::string password = "MySecurePassword123";
+
+## 4. Cross-compile Injector
+cd injector
+x86_64-w64-mingw32-g++ inj.cpp -o inj.exe -static -ladvapi32 -luser32 -Wall
+cd ..
+
+## 5. Transfer to Windows
+# Copy these to your Windows test machine:
+# - inj.exe
+# - testdll.dll
+
+## Windows Execution
+1. Open cmd as Administrator
+2. Start target process (e.g., notepad.exe)
+3. Find PID using Task Manager
+4. Run injector:
+   inj.exe [PID] [METHOD]
+   
+   Available methods:
+   1 - Basic LoadLibrary
+   2 - Manual Mapping
+   3 - APC Injection
+
+## Verification
+1. Check for MessageBox from testdll.dll
+2. Verify in Process Explorer:
+   - DLL should appear in loaded modules
+   - No suspicious threads for Method 2/3
+
+## Cleanup
+1. Terminate test process
+2. Delete all generated files
+3. Wipe memory cache
+
+# Security Notice
+- Use only on authorized systems
+- All operations logged
+- No persistence mechanisms included
+- Tool auto-wipes sensitive data
