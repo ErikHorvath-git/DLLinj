@@ -1,0 +1,12 @@
+Testing Notes:
+
+Uses Wine for demonstration (real testing should use Windows)
+
+Replace [PID] with actual process ID
+
+Method 2 (manual mapping) leaves least traces
+
+For Production Use:
+• Replace wine with actual Windows target
+• Use physical memory tools for verification
+• Consider TPM-backed memory encryption
